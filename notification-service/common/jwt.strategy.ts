@@ -13,7 +13,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    // payload identique à celui émis par le Auth Service
+    
     return { id: payload.sub, email: payload.email, role: payload.role };
   }
 }
