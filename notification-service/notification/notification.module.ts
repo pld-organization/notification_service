@@ -7,11 +7,12 @@ import { NotificationController } from './notification.controller';
 import { NotificationService } from './notification.service';
 import { NotificationGateway } from './notification.gateway';
 import { Notification } from './entities/notification.entity';
+import { TrackedReservation } from './entities/tracked-reservation.entity';
 import { JwtStrategy } from '../common/jwt.strategy';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Notification]),
+    TypeOrmModule.forFeature([Notification, TrackedReservation]),
     PassportModule,
     JwtModule.registerAsync({
       useFactory: (config: ConfigService) => ({
