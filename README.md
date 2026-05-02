@@ -1,34 +1,16 @@
-# 🔔 Notification Service
+# Notification Service
 
-A NestJS microservice responsible for real-time notifications, meeting reminders, and file upload events across the medical platform.
+Microservice responsible for real-time notifications delivered to doctors and patients across the medical platform.
 
----
-
-## 📁 Modified & New Files
-
-| File | Status | Description |
-|------|--------|-------------|
-| `src/notification/entities/notification.entity.ts` | ✏️ Modified | Added `FILE_UPLOADED` to `NotificationType` enum |
-| `src/notification/notification.service.ts` | ✏️ Modified | Added `notifyFileUploaded()` method |
-| `src/events/events.module.ts` | ✏️ Modified | Registered `StorageController` and `StorageListener` |
-| `src/events/storage.listener.ts` | 🆕 New | Forwards files to the storage service and triggers notifications |
-| `src/events/storage.controller.ts` | 🆕 New | Exposes `POST /storage/upload/single` and `POST /storage/upload/multiple` |
-| `main.ts` | ✏️ Modified | Open CORS configuration for all origins |
-| `package.json` | ✏️ Modified | Added `form-data`, `multer`, `@types/multer`, `@types/form-data` |
-
----
-
-## 🚀 Base URL
+## Base URL
 
 ```
 https://notification-bagz.onrender.com
 ```
 
----
+## Authentication
 
-## 🔐 Authentication
-
-All endpoints require a valid JWT token in the `Authorization` header:
+All endpoints are protected by JWT. Include the token in every request:
 
 ```
 Authorization: Bearer <TOKEN>
@@ -36,54 +18,85 @@ Authorization: Bearer <TOKEN>
 
 ---
 
-## 📡 API Endpoints
+## Endpoints
 
 ### Notifications
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/notifications` | ✅ | Create a notification manually |
-| `GET` | `/notifications/me` | ✅ | Get all notifications for the logged-in user |
-| `PATCH` | `/notifications/:id/read` | ✅ | Mark a notification as read |
-| `PATCH` | `/notifications/me/read-all` | ✅ | Mark all notifications as read |
-| `DELETE` | `/notifications/:id` | ✅ | Delete a notification |
-| `POST` | `/notifications/reservation-created` | ✅ | Trigger notifications for a new reservation |
-| `POST` | `/notifications/reservation-cancelled` | ✅ | Trigger notifications for a cancelled reservation |
+#### Get my notifications
+```
+GET /notifications/me
+```
+Returns all notifications for the authenticated user, ordered by date descending.
+
+#### Mark one as read
+```
+PATCH /notifications/:id/read
+```
+
+#### Mark all as read
+```
+PATCH /notifications/me/read-all
+```
+
+#### Delete a notification
+```
+DELETE /notifications/:id
+```
+
+---
+
+### Reservation Events
+
+#### Reservation created
+```
+POST /notifications/reservation-created
+```
+```json
+{
+  "reservationId": "uuid",
+  "doctorId": "uuid",
+  "patientId": "uuid",
+  "reservationDay": "2026-05-10",
+  "reservationTime": "14:00",
+  "meetingUrl": "https://meet.example.com/abc",
+  "reason": "Consultation générale"
+}
+```
+
+#### Reservation cancelled
+```
+POST /notifications/reservation-cancelled
+```
+```json
+{
+  "reservationId": "uuid",
+  "doctorId": "uuid",
+  "patientId": "uuid",
+  "reservationDay": "2026-05-10",
+  "reservationTime": "14:00"
+}
+```
 
 ---
 
 ### File Upload
 
-#### `POST /storage/upload/single`
+Both endpoints forward the file(s) to the storage service and automatically send a notification to both the doctor and the patient.
 
-Upload a single file to the storage service. Automatically notifies both the patient and the doctor.
-
-**Headers:**
+#### Upload single file
 ```
-Authorization: Bearer <TOKEN>
+POST /storage/upload/single
 Content-Type: multipart/form-data
 ```
 
-**Form Data:**
+| Field | Type | Required |
+|-------|------|----------|
+| `file` | File | ✅ |
+| `patientId` | string | ✅ |
+| `doctorId` | string | ✅ |
+| `type` | string | ✅ |
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `file` | File | ✅ | The file to upload |
-| `patientId` | string | ✅ | ID of the patient |
-| `doctorId` | string | ✅ | ID of the doctor |
-| `type` | string | ✅ | File type (e.g. `scan`, `ordonnance`, `document`) |
-
-**Example:**
-```bash
-curl -X POST https://notification-bagz.onrender.com/storage/upload/single \
-  -H "Authorization: Bearer <TOKEN>" \
-  -F "file=@/path/to/file.png" \
-  -F "patientId=123" \
-  -F "doctorId=456" \
-  -F "type=scan"
-```
-
-**Response `201`:**
+Response:
 ```json
 {
   "filename": "file.png",
@@ -92,39 +105,20 @@ curl -X POST https://notification-bagz.onrender.com/storage/upload/single \
 }
 ```
 
----
-
-#### `POST /storage/upload/multiple`
-
-Upload multiple files (max 10) to the storage service. Automatically notifies both the patient and the doctor.
-
-**Headers:**
+#### Upload multiple files
 ```
-Authorization: Bearer <TOKEN>
+POST /storage/upload/multiple
 Content-Type: multipart/form-data
 ```
 
-**Form Data:**
+| Field | Type | Required |
+|-------|------|----------|
+| `files` | File[] (max 10) | ✅ |
+| `patientId` | string | ✅ |
+| `doctorId` | string | ✅ |
+| `type` | string | ✅ |
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `files` | File[] | ✅ | The files to upload (max 10) |
-| `patientId` | string | ✅ | ID of the patient |
-| `doctorId` | string | ✅ | ID of the doctor |
-| `type` | string | ✅ | File type (e.g. `scan`, `ordonnance`, `document`) |
-
-**Example:**
-```bash
-curl -X POST https://notification-bagz.onrender.com/storage/upload/multiple \
-  -H "Authorization: Bearer <TOKEN>" \
-  -F "files=@/path/to/file1.png" \
-  -F "files=@/path/to/file2.pdf" \
-  -F "patientId=123" \
-  -F "doctorId=456" \
-  -F "type=ordonnance"
-```
-
-**Response `201`:**
+Response:
 ```json
 [
   {
@@ -142,60 +136,12 @@ curl -X POST https://notification-bagz.onrender.com/storage/upload/multiple \
 
 ---
 
-### Reservation Events (Internal)
-
-#### `POST /notifications/reservation-created`
-
-```json
-{
-  "reservationId": "uuid",
-  "doctorId": "uuid",
-  "patientId": "uuid",
-  "reservationDay": "2026-05-10",
-  "reservationTime": "14:00",
-  "meetingUrl": "https://meet.example.com/abc",
-  "reason": "Consultation générale"
-}
-```
-
-#### `POST /notifications/reservation-cancelled`
-
-```json
-{
-  "reservationId": "uuid",
-  "doctorId": "uuid",
-  "patientId": "uuid",
-  "reservationDay": "2026-05-10",
-  "reservationTime": "14:00"
-}
-```
-
----
-
-## 🔔 Notification Types
-
-| Type | Trigger |
-|------|---------|
-| `RESERVATION_CREATED` | New reservation confirmed |
-| `RESERVATION_CANCELLED` | Reservation cancelled |
-| `MEETING_REMINDER` | 15 minutes before a meeting (automated cron) |
-| `FILE_UPLOADED` | Single or multiple file uploaded |
-
----
-
-## 🔄 Real-time WebSocket
+## Real-time WebSocket
 
 **Namespace:** `/notifications`
 
-**Events:**
+Connect and register your userId to start receiving notifications in real time.
 
-| Event | Direction | Description |
-|-------|-----------|-------------|
-| `register` | Client → Server | Register the user socket with `{ userId }` |
-| `registered` | Server → Client | Confirmation `{ success: true }` |
-| `notification` | Server → Client | New notification pushed in real time |
-
-**Example (JavaScript):**
 ```javascript
 const socket = io('https://notification-bagz.onrender.com/notifications');
 
@@ -203,42 +149,46 @@ socket.on('connect', () => {
   socket.emit('register', { userId: 'your-user-id' });
 });
 
-socket.on('notification', (notification) => {
-  console.log('New notification:', notification);
+socket.on('notification', (data) => {
+  console.log(data);
 });
 ```
 
----
-
-## ⏰ Automated Reminder (Cron)
-
-A cron job runs **every minute** and checks tracked reservations. If a meeting is starting within **15 minutes**, it sends a `MEETING_REMINDER` notification to both the doctor and the patient, then marks the reminder as sent.
-
----
-
-## 🛠️ Environment Variables
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `PORT` | Service port | `3002` |
-| `DB_HOST` | PostgreSQL host | `localhost` |
-| `DB_PORT` | PostgreSQL port | `5432` |
-| `DB_USER` | PostgreSQL user | `postgres` |
-| `DB_PASS` | PostgreSQL password | `secret` |
-| `DB_NAME` | PostgreSQL database name | `notifications` |
-| `JWT_SECRET` | Secret key for JWT validation | `my-secret` |
-| `RESERVATION_SERVICE_URL` | URL of the reservation microservice | `https://reservation-service.onrender.com` |
-| `STORAGE_SERVICE_URL` | URL of the storage microservice | `https://storage-service-yxqy.onrender.com` |
+| Event | Direction | Description |
+|-------|-----------|-------------|
+| `register` | Client → Server | Register user with `{ userId }` |
+| `registered` | Server → Client | Confirmation `{ success: true }` |
+| `notification` | Server → Client | New notification payload |
 
 ---
 
-## 📦 Tech Stack
+## Notification Types
 
-- **Framework:** NestJS 10
-- **Database:** PostgreSQL + TypeORM
-- **Auth:** JWT via Passport
-- **Real-time:** Socket.IO (WebSocket)
-- **HTTP Client:** Axios (`@nestjs/axios`)
-- **Scheduler:** `@nestjs/schedule` (Cron)
-- **File Upload:** Multer (memory storage)
-- **Multipart Forwarding:** `form-data`
+| Type | When |
+|------|------|
+| `RESERVATION_CREATED` | A reservation is confirmed |
+| `RESERVATION_CANCELLED` | A reservation is cancelled |
+| `MEETING_REMINDER` | 15 min before a meeting (automatic) |
+| `FILE_UPLOADED` | A file is uploaded by the patient |
+
+---
+
+## Automatic Reminder
+
+A cron job runs every minute. When a meeting is detected within the next 15 minutes, a reminder notification is sent to both the doctor and the patient. The reminder is sent only once per reservation.
+
+---
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Service port (default: `3002`) |
+| `DB_HOST` | PostgreSQL host |
+| `DB_PORT` | PostgreSQL port |
+| `DB_USER` | PostgreSQL username |
+| `DB_PASS` | PostgreSQL password |
+| `DB_NAME` | PostgreSQL database name |
+| `JWT_SECRET` | Secret used to verify JWT tokens |
+| `RESERVATION_SERVICE_URL` | URL of the reservation microservice |
+| `STORAGE_SERVICE_URL` | URL of the storage microservice |
